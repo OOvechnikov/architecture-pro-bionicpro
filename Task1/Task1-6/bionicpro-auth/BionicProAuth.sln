@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35818.85
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BionicProAuth", "BionicProAuth.csproj", "{5744C7CB-3CD3-7078-141B-B62BD034978A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5744C7CB-3CD3-7078-141B-B62BD034978A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5744C7CB-3CD3-7078-141B-B62BD034978A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5744C7CB-3CD3-7078-141B-B62BD034978A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5744C7CB-3CD3-7078-141B-B62BD034978A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D078E2F5-12A5-4D9A-9592-B819810662CB}
+	EndGlobalSection
+EndGlobal
