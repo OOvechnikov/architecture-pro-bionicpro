@@ -1,0 +1,154 @@
+  {
+  "realm": "reports-realm",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Regular user role" },
+      { "name": "administrator", "description": "Administrator role" },
+      { "name": "prothetic_user", "description": "Prothetic user role with report access" }
+    ]
+  },
+  "users": [
+      {
+        "username": "user1",
+        "enabled": true,
+        "email": "user1@example.com",
+        "firstName": "User",
+        "lastName": "One",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "password123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["user"]
+      },
+      {
+        "username": "user2",
+        "enabled": true,
+        "email": "user2@example.com",
+        "firstName": "User",
+        "lastName": "Two",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "password123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["user"]
+      },
+      {
+        "username": "admin1",
+        "enabled": true,
+        "email": "admin1@example.com",
+        "firstName": "Admin",
+        "lastName": "One",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "admin123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["administrator"]
+      },
+      {
+        "username": "prothetic1",
+        "enabled": true,
+        "email": "prothetic1@example.com",
+        "firstName": "Prothetic",
+        "lastName": "One",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "prothetic123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["prothetic_user"]
+      },
+      {
+        "username": "prothetic2",
+        "enabled": true,
+        "email": "prothetic2@example.com",
+        "firstName": "Prothetic",
+        "lastName": "Two",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "prothetic123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["prothetic_user"]
+      },
+      {
+        "username": "prothetic3",
+        "enabled": true,
+        "email": "prothetic3@example.com",
+        "firstName": "Prothetic",
+        "lastName": "Three",
+        "credentials": [
+          {
+            "type": "password",
+            "value": "prothetic123",
+            "temporary": false
+          }
+        ],
+        "realmRoles": ["prothetic_user"]
+      }
+  ],
+  "clients": [
+    {
+      "clientId": "bionicpro-auth",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "oNwoLQdvJAvRcL89SydqCWCe5ry1jMgq",
+      "redirectUris": ["http://localhost:8082/auth/callback"],
+      "webOrigins": ["http://localhost:8082"],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "bearerOnly": false
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": true
+    }
+  ],
+  "userFederationProviders": [
+    {
+      "id": "ldap-provider",
+      "providerName": "ldap",
+      "displayName": "LDAP",
+      "priority": 0,
+      "fullSyncPeriod": -1,
+      "changedSyncPeriod": -1,
+      "config": {
+        "enabled": "true",
+        "cachePolicy": "DEFAULT",
+        "editMode": "READ_ONLY",
+        "vendor": "other",
+        "connectionUrl": "ldap://openldap:389",
+        "bindDn": "cn=admin,dc=example,dc=com",
+        "bindCredential": "admin",
+        "usersDn": "ou=People,dc=example,dc=com",
+        "usernameLDAPAttribute": "uid",
+        "rdnLDAPAttribute": "uid",
+        "uuidLDAPAttribute": "entryUUID",
+        "userObjectClasses": "inetOrgPerson",
+        "searchScope": "1",
+        "importEnabled": "true",
+        "trustEmail": "true"
+      }
+    }
+  ]
+}
