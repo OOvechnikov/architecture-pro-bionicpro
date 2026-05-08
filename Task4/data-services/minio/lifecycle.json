@@ -1,0 +1,14 @@
+{
+  "Rules": [
+    {
+      "ID": "reports-ttl",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "reports/"
+      },
+      "Expiration": {
+        "Days": 1
+      }
+    }
+  ]
+}

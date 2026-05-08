@@ -1,0 +1,269 @@
+x-airflow-common: &airflow-common
+  build:
+    context: ./data-services/
+    dockerfile: Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor #локальный запуск
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__WEBSERVER__SECRET_KEY: 'your_airflow_webserver_sec_key'
+    AIRFLOW_CONN_WRITE_TO_POSTGRES: 'postgresql://airflow:airflow@postgres:5432/airflow'
+    _PIP_ADDITIONAL_REQUIREMENTS: ''
+    AIRFLOW_INPUT_DIR: '/opt/airflow/dag-inputs'
+  volumes:
+    - ./data-services/dags:/opt/airflow/dags
+    - ./data-services/dags/sql:/opt/airflow/dags/sql
+    - ./data-services/requirements.txt:/opt/airflow/requirements.txt
+    - ./data-services/data:/opt/airflow/sample_files
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+  networks:
+    - dag_sample
+
+services:
+  postgres:
+    image: postgres:16.0
+    volumes:
+      - ./data-services/db/init-postgres-db.sql:/docker-entrypoint-initdb.d/db.sql
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test:
+        - CMD
+        - pg_isready
+        - -U
+        - airflow
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - dag_sample
+
+  airflow-webserver:
+    <<: *airflow-common
+
+    ports:
+      - "8085:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    command: webserver
+    networks:
+      - dag_sample
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  airflow-scheduler:
+    <<: *airflow-common
+    networks:
+      - dag_sample
+    command: scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  airflow-triggerer:
+    <<: *airflow-common
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - dag_sample
+    command: bash -c "airflow triggerer"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - airflow jobs check --job-type TriggererJob --hostname "${HOSTNAME}"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-cli:
+    <<: *airflow-common
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dag_sample
+    profiles:
+      - debug
+    command:
+      - bash
+      - -c
+      - airflow
+
+  airflow-init:
+    <<: *airflow-common
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c " airflow db init && airflow users create \ --username admin \ --firstname admin \ --lastname admin \ --role Admin \ --email admin@sample.ru \ --password admin 
+      
+      "
+    networks:
+      - dag_sample
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ./data-services/clickhouse_data:/var/lib/clickhouse
+      - ./data-services/clickhouse_tmp:/var/lib/clickhouse/tmp
+      - ./data-services/db/init-clickhouse-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - dag_sample
+    environment:
+      CLICKHOUSE_USER: airflow
+      CLICKHOUSE_PASSWORD: airflow
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    user: "101:101"  # Явно указываем пользователя ClickHouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  reports:
+    build:
+      context: ./data-services/report-service/
+      dockerfile: Dockerfile
+    container_name: report-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      - clickhouse
+    networks:
+      - dag_sample
+      - shared-network
+
+  keycloak_db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: keycloak_user
+      POSTGRES_PASSWORD: keycloak_password
+    volumes:
+      - ./auth-services/postgres-keycloak-data3:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - app-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak_db:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: keycloak_password
+    command: 
+      - start-dev
+      - --import-realm
+    volumes:
+      - ./auth-services/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+      - ./auth-services/keycloak/setup-ldap-mappers.sh:/opt/keycloak/setup-ldap-mappers.sh
+    ports:
+      - "8080:8080"
+    depends_on:
+      - keycloak_db
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./auth-services/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8082
+
+  bionicpro-auth:
+    build:
+      context: ./auth-services/bionicpro-auth/
+      dockerfile: Dockerfile
+    container_name: bionicpro-auth
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+    volumes:
+      - ./auth-services/bionicpro-auth-keys:/keys
+    environment:
+      SESSION_TTL: "00:02:00"
+      COOKIE_MAX_AGE: "00:05:00"
+    networks:
+      - app-network
+      - shared-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes"]  # включаем AOF-персистентность
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    environment:
+      LDAP_ORGANISATION: "Example Org"
+      LDAP_DOMAIN: "example.com"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "389:389"
+    volumes:
+      - ./auth-services/ldap/bootstrap/config.ldif:/tmp/config.ldif
+    networks:
+      - app-network
+
+volumes:
+  redis_data:
+
+networks:
+  dag_sample:
+  app-network:
+  shared-network:
